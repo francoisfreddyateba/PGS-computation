@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+
+#SBATCH --mem=150GB
+
+#SBATCH --ntasks=1
+
+#SBATCH --cpus-per-task=8
+
+ 
+
+# Set the location of the PLINK binaries by copying them to the home directory
+
+cp /mnt/c/Users/francois.ateba/Music/plink2_linux_x86_64_20240516/plink2 /home/freddy/plink2
+
+cp /mnt/c/Users/francois.ateba/Music/plink_linux_x86_64_20231211/plink /home/freddy/plink
+
+ 
+
+# Ensure the PLINK binaries are executable
+
+chmod +x /home/freddy/plink2
+
+chmod +x /home/freddy/plink
+
+ 
+
+# Define the paths to PLINK binaries
+
+plink2="/home/freddy/plink2"
+
+plink1="/home/freddy/plink"
+
+ 
+
+# Navigate to the directory where the PLINK files are stored
+
+cd /mnt/c/Users/francois.ateba/Music/PlinkFiles
+
+ 
+
+# Loop through chromosome numbers 21 and 22
+
+for chnum in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22; do
+
+    # Define paths for the input files
+
+    bgen_path="/mnt/c/Users/francois.ateba/Music/prscomputation/Bristol/filtered_${chnum}.bgen"
+
+    sample_path="/mnt/c/Users/francois.ateba/Music/prscomputation/Bristol/swapped.sample"
+
+    output_path="/mnt/c/Users/francois.ateba/Music/PlinkFiles/chr${chnum}"
+
+ 
+
+    # Ensure the output directory exists
+
+    mkdir -p "$output_path"
+
+ 
+
+    # Run PLINK 2 commands
+
+    $plink2 --bgen "$bgen_path" ref-last --sample "$sample_path" --make-bed --out "$output_path"
+
+ 
+
+    # Remove multi-allelic SNPs
+
+    $plink1 --bfile "$output_path" --bmerge "$output_path" --merge-mode 6
+
+    $plink1 --bfile "$output_path" --exclude plink.missnp --make-bed --out "$output_path"
+
+    rm -f "$output_path"/*~
+
+ 
+
+    # Remove duplicates
+
+    $plink1 --bfile "$output_path" --list-duplicate-vars
+
+    $plink1 --bfile "$output_path" --exclude plink.dupvar --make-bed --out "$output_path"
+
+    rm -f "$output_path"/*~
+
+ 
+
+    # MAF
+
+    $plink1 --bfile "$output_path" --freq
+
+    $plink1 --bfile "$output_path" --maf 0.01 --make-bed --out "$output_path"
+
+    rm -f "$output_path"/*~
+
+ 
+
+    # HWE
+
+    $plink1 --bfile "$output_path" --hardy
+
+    $plink1 --bfile "$output_path" --hwe 1e-6 --make-bed --out "$output_path"
+
+    rm -f "$output_path"/*~
+
+ 
+
+    # SNP missingness
+
+    $plink1 --bfile "$output_path" --missing
+
+    $plink1 --bfile "$output_path" --geno 0.01 --make-bed --out "$output_path"
+
+    rm -f "$output_path"/*~
+
+done
+
+ 
+
+# Change permissions to make all files accessible
+
+chmod -R 770 /mnt/c/Users/francois.ateba/Music/PlinkFiles/
